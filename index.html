@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Party Product Store</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:Arial,sans-serif}
+body{background:#f5f7fb;padding:30px}
+.container{max-width:1200px;margin:auto}
+header{text-align:center;margin-bottom:35px}
+h1{font-size:48px;margin-bottom:10px}
+p.sub{color:#666}
+.layout{display:grid;grid-template-columns:260px 1fr;gap:30px}
+.sidebar,.card{background:#fff;border-radius:24px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+.sidebar{padding:24px;height:fit-content}
+.cat-btn{width:100%;padding:16px;border-radius:16px;border:1px solid #ddd;background:#fff;display:flex;justify-content:space-between;cursor:pointer;margin-bottom:10px}
+.cat-btn.active{background:#111;color:#fff}
+.topbar{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:24px}
+.controls{display:flex;gap:10px;flex-wrap:wrap}
+input,select{padding:12px 14px;border-radius:14px;border:1px solid #ccc}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px}
+.card{overflow:hidden;transition:.2s}
+.card:hover{transform:translateY(-5px)}
+.card img{width:100%;height:220px;object-fit:cover}
+.content{padding:20px}
+.price{font-size:28px;font-weight:bold;margin:14px 0}
+button.buy,.primary{background:#111;color:#fff;border:none;padding:13px 22px;border-radius:14px;cursor:pointer}
+.center{text-align:center;margin-top:28px}
+.notice{margin-top:12px;font-size:14px;color:#666}
+.test-box{margin-top:26px;background:#fff;padding:18px;border-radius:18px;box-shadow:0 4px 12px rgba(0,0,0,.06)}
+.pass{color:green;font-weight:bold}
+.fail{color:#b00020;font-weight:bold}
+@media(max-width:900px){.layout{grid-template-columns:1fr}h1{font-size:38px}}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>Party Product Store</h1>
+<p class="sub">Shareable catalog with safe share fallback</p>
+<button class="primary" id="shareBtn">Share This Catalog</button>
+<div class="notice" id="shareStatus">Ready to share</div>
+</header>
+
+<div class="layout">
+<aside class="sidebar">
+<h2 style="margin-bottom:18px">Categories</h2>
+<div id="categories"></div>
+</aside>
+
+<section>
+<div class="topbar">
+<h2 id="title">Decorations</h2>
+<div class="controls">
+<input id="search" placeholder="Search products..."/>
+<select id="showCount"><option selected>All Products</option></select>
+</div>
+</div>
+<div id="products" class="grid"></div>
+<div class="center">
+<button id="loadMore" class="primary">Load More</button>
+</div>
+</section>
+</div>
+
+<div class="test-box">
+<h3>Runtime Self Tests</h3>
+<div id="tests"></div>
+</div>
+</div>
+
+<script>
+const data={
+Decorations:[
+{name:'Balloon Simple',desc:'20 pcs',price:20,img:'images/simple-bal.jpg'},
+{name:'Balloon Mix',desc:'25 pcs',price:30,img:'images/bm25.jpg'},
+{name:'Metallic Balloon Pack',desc:'50 pcs',price:60,img:'images/b50.jpg'},
+{name:'Metallic Balloon Mix',desc:'50 pcs mixed',price:60,img:'images/bm50.jpg'},
+{name:'Big Party Balloon',desc:'1 jumbo',price:20,img:'images/big-bal.jpg'},
+{name:'Birthday Combo',desc:'Decoration set',price:120,img:'images/hb-combo.jpg'},
+{name:'Anniversary Combo',desc:'Decoration set',price:120,img:'images/ha-combo.jpg'}
+],
+Caps:[
+{name:'Simple Cap',desc:'Plain',price:10,img:'images/plain-cap.jpg'},
+{name:'Birthday Cap',desc:'Common',price:20,img:'images/common-cap.jpg'},
+{name:'Happy Birthday Cap',desc:'Printed',price:30,img:'images/hb-cap.jpg'},
+{name:'Birthday Boy',desc:'Printed',price:35,img:'images/birthday-boy.jpg'},
+{name:'Birthday Girl',desc:'Printed',price:35,img:'images/birthday-girl.jpg'}
+],
+Crowns:[
+{name:'Birthday Crown',desc:'Premium',price:120,img:'images/hb-crown.jpg'},
+{name:'Golden Silver Crown',desc:'Gold/Silver',price:150,img:'images/gs-crown.jpg'},
+{name:'Led Crown',desc:'Glow lights',price:120,img:'images/led-tiyara.jpg'},
+{name:'Tiara',desc:'Elegant',price:150,img:'images/tiyara.jpg'}
+],
+Extras:[
+{name:'Birthday Boy Sash',desc:'Boy',price:80,img:'images/boy-sash.jpg'},
+{name:'Bride To Be Sash',desc:'Bride',price:80,img:'images/bride-to-sash.jpg'},
+{name:'Birthday Girl Sash',desc:'Girl',price:80,img:'images/girl-sash.jpg'},
+{name:'Party Poppers',desc:'4 sizes',price:299,img:'images/popper.jpg'},
+{name:'Party Spray',desc:'Snow spray',price:150,img:'images/spray.jpg'}
+]
+};
+
+let category='Decorations';
+let visible=999;
+
+const catBox=document.getElementById('categories');
+const products=document.getElementById('products');
+const search=document.getElementById('search');
+const showCount=document.getElementById('showCount');
+const loadBtn=document.getElementById('loadMore');
+const shareStatus=document.getElementById('shareStatus');
+
+function renderCategories(){
+catBox.innerHTML='';
+Object.keys(data).forEach(cat=>{
+ const b=document.createElement('button');
+ b.className='cat-btn '+(cat===category?'active':'');
+ b.innerHTML=`<span>${cat}</span><span>${data[cat].length}</span>`;
+ b.onclick=()=>{category=cat;visible=999;renderCategories();renderProducts();};
+ catBox.appendChild(b);
+});
+}
+
+function filtered(){
+return data[category].filter(p=>
+p.name.toLowerCase().includes(search.value.toLowerCase())
+);
+}
+
+function renderProducts(){
+const items=filtered().slice(0,visible);
+document.getElementById('title').textContent=category;
+products.innerHTML='';
+items.forEach(p=>{
+products.innerHTML+=`<div class='card'>
+<img src='${p.img}' alt='${p.name}'>
+<div class='content'>
+<h3>${p.name}</h3>
+<p>${p.desc}</p>
+<div class='price'>₹${p.price}</div>
+<button class='buy'>Buy Now</button>
+</div></div>`;
+});
+loadBtn.style.display='none';
+}
+
+search.addEventListener('input',renderProducts);
+showCount.addEventListener('change',()=>{
+visible=+showCount.value;
+renderProducts();
+});
+loadBtn.addEventListener('click',()=>{
+renderProducts();
+});
+
+async function shareSite(){
+const url=window.location.href;
+
+try{
+ if(
+   navigator.share &&
+   window.isSecureContext &&
+   (!navigator.canShare || navigator.canShare({url}))
+ ){
+   await navigator.share({
+     title:'Party Product Store',
+     text:'Check out this catalog',
+     url
+   });
+   shareStatus.textContent='Shared successfully';
+   return;
+ }
+ throw new Error('Fallback');
+}
+catch(err){
+ try{
+   if(navigator.clipboard && window.isSecureContext){
+      await navigator.clipboard.writeText(url);
+      shareStatus.textContent='Share blocked. Link copied to clipboard instead.';
+   }else{
+      prompt('Copy and share this link:',url);
+      shareStatus.textContent='Manual share link shown.';
+   }
+ }catch(e){
+   prompt('Copy and share this link:',url);
+   shareStatus.textContent='Used manual copy fallback.';
+ }
+}
+}
+
+document.getElementById('shareBtn').addEventListener('click',shareSite);
+
+/* Added test coverage */
+function runTests(){
+ const out=[];
+ function test(name,fn){
+  try{
+   fn();
+   out.push(`<div class='pass'>✔ ${name}</div>`);
+  }catch(e){
+   out.push(`<div class='fail'>✖ ${name}: ${e.message}</div>`);
+  }
+ }
+
+ test('Categories exist',()=>{
+   if(Object.keys(data).length<3) throw Error('missing categories');
+ });
+
+ test('Filtering returns array',()=>{
+   if(!Array.isArray(filtered())) throw Error('filter failed');
+ });
+
+ test('Load count selector numeric',()=>{
+   if(Number(showCount.value)!==6) throw Error('all products mode active');
+ });
+
+ test('Share fallback function exists',()=>{
+   if(typeof shareSite!=='function') throw Error('share missing');
+ });
+
+ document.getElementById('tests').innerHTML=out.join('');
+}
+
+renderCategories();
+renderProducts();
+runTests();
+</script>
+</body>
+</html>
